@@ -65,12 +65,10 @@ int main() {
                 window.close();
         }
 
-        for (auto it = rocks.begin(); it != rocks.end(); /* no increment here */) {
+        for (auto it = rocks.begin(); it != rocks.end();) {
             if (checkCollision(square, it->shape)) {
-                // Handle the collision (e.g., remove the rock)
                 it = rocks.erase(it);
             } else {
-                // Move to the next rock
                 ++it;
             }
         }
