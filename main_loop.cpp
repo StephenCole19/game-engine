@@ -2,9 +2,11 @@
 #include <vector>
 #include <cstdlib>
 #include <ctime>
+#include <cmath>
 
 struct Rock {
     sf::RectangleShape shape;
+    sf::Clock projectile_timer;
 
     Rock(float x, float y, float size) {
         shape.setSize(sf::Vector2f(size, size));
@@ -13,8 +15,19 @@ struct Rock {
     }
 };
 
-bool checkCollision(const sf::RectangleShape& square, const Rock& rock) {
-    return square.getGlobalBounds().intersects(rock.shape.getGlobalBounds());
+struct Projectile {
+  sf::RectangleShape shape;
+  sf::Vector2f velocity;
+
+  Projectile(float x, float y, float size, sf::Vector2f vel) : velocity(vel) {
+    shape.setSize(sf::Vector2f(size, size));
+    shape.setPosition(x, y);
+    shape.setFillColor(sf::Color::Blue);
+  }
+};
+
+bool checkCollision(const sf::RectangleShape& square, const sf::RectangleShape& other) {
+    return square.getGlobalBounds().intersects(other.getGlobalBounds());
 }
 
 int main() {
@@ -22,7 +35,8 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Moving Square");
 
     // Create a square shape
-    sf::RectangleShape square(sf::Vector2f(50, 50));
+    int squareSize = 20;
+    sf::RectangleShape square(sf::Vector2f(squareSize, squareSize));
     square.setFillColor(sf::Color::Green);
 
     // Set the initial position of the square
@@ -31,13 +45,12 @@ int main() {
     square.setPosition(posX, posY);
 
     // Set the speed of the square movement
-    float speed = 0.01f;
-
-    // Seed for random terrain generation
+    float squareSpeed = 0.01f;
     std::srand(std::time(0));
 
-    // Vector to store rocks
+    // Game Items
     std::vector<Rock> rocks;
+    std::vector<Projectile> projectiles;
 
     // Initialize playable area size
     sf::Vector2f playableAreaSize(window.getSize().x, window.getSize().y);
@@ -52,49 +65,31 @@ int main() {
                 window.close();
         }
 
+        for (auto it = rocks.begin(); it != rocks.end(); /* no increment here */) {
+            if (checkCollision(square, it->shape)) {
+                // Handle the collision (e.g., remove the rock)
+                it = rocks.erase(it);
+            } else {
+                // Move to the next rock
+                ++it;
+            }
+        }
+
         // Move the square based on keyboard input
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) && posX > 0) {
-            bool canMove = true;
-            for (const auto& rock : rocks) {
-                if (checkCollision(square, rock)) {
-                    canMove = false;
-                    break;
-                }
-            }
-            if (canMove) posX -= speed;
+            posX -= squareSpeed;
         }
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) && posX < playableAreaSize.x - square.getSize().x) {
-            bool canMove = true;
-            for (const auto& rock : rocks) {
-                if (checkCollision(square, rock)) {
-                    canMove = false;
-                    break;
-                }
-            }
-            if (canMove) posX += speed;
+            posX += squareSpeed;
         }
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) && posY > 0) {
-            bool canMove = true;
-            for (const auto& rock : rocks) {
-                if (checkCollision(square, rock)) {
-                    canMove = false;
-                    break;
-                }
-            }
-            if (canMove) posY -= speed;
+            posY -= squareSpeed;
         }
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) && posY < playableAreaSize.y - square.getSize().y) {
-            bool canMove = true;
-            for (const auto& rock : rocks) {
-                if (checkCollision(square, rock)) {
-                    canMove = false;
-                    break;
-                }
-            }
-            if (canMove) posY += speed;
+            posY += squareSpeed;
         }
 
         // Check if the square is at the edge of the playable area
@@ -113,25 +108,82 @@ int main() {
 
             // Generate new rocks for the area
             rocks.clear();
-            for (int i = 0; i < 5; ++i) {
+            float rockSize = 20.0f;
+            int numberOfRocks = 5;
+            for (int i = 0; i < numberOfRocks; ++i) {
                 rocks.emplace_back(
                     std::rand() % static_cast<int>(playableAreaSize.x),
                     std::rand() % static_cast<int>(playableAreaSize.y),
-                    20.0f
+                    rockSize
                 );
             }
         }
 
-        // Update the position of the square
         square.setPosition(posX, posY);
-
-        // Clear the window
         window.clear();
 
-        // Draw the rocks
         for (const auto& rock : rocks) {
             window.draw(rock.shape);
         }
+
+        for (auto& rock : rocks) {
+            float fireInterval = 1.0f;
+            sf::Time interval = sf::seconds(fireInterval);
+
+            if (rock.projectile_timer.getElapsedTime() > interval) {
+                
+                float angle = static_cast<float>(std::rand() % 360);
+                sf::Vector2f direction(std::cos(angle), std::sin(angle));
+
+                float projectileSize = 5.0f;
+                float speed = 0.01f; 
+
+                projectiles.emplace_back(
+                    rock.shape.getPosition().x,
+                    rock.shape.getPosition().y,
+                    projectileSize,
+                    direction * speed
+                );
+
+                rock.projectile_timer.restart();
+            }
+        }
+        
+        for (auto& projectile : projectiles) {
+            projectile.shape.move(projectile.velocity);
+
+            if (checkCollision(square, projectile.shape)) {
+                sf::Vector2u windowSize = window.getSize();
+
+                float middleX = static_cast<float>(windowSize.x) / 2.0f;
+                float middleY = static_cast<float>(windowSize.y) / 2.0f;
+
+                posX = middleX;
+                posY = middleY;
+            }
+        }
+
+        projectiles.erase(
+            std::remove_if(
+                projectiles.begin(),
+                projectiles.end(),
+                [&](const Projectile& projectile) {
+                    return (
+                        projectile.shape.getPosition().x < 0 ||
+                        projectile.shape.getPosition().x > window.getSize().x ||
+                        projectile.shape.getPosition().y < 0 ||
+                        projectile.shape.getPosition().y > window.getSize().y
+                    );
+                }
+            ),
+            projectiles.end()
+        );
+
+
+        for(const auto& projectile : projectiles) {
+            window.draw(projectile.shape);
+        }
+
 
         // Draw the square
         window.draw(square);

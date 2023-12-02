@@ -1,4 +1,5 @@
-main_loop
+game
+.vscode/
 
 # Prerequisites
 *.d
