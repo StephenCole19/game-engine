@@ -26,11 +26,29 @@ struct Projectile {
   }
 };
 
+struct ScreenLocation {
+    float posX;
+    float posY;
+
+    ScreenLocation(float x, float y) {
+        posX = x;
+        posY = y;
+    }
+};
+
 bool checkCollision(const sf::RectangleShape& square, const sf::RectangleShape& other) {
     return square.getGlobalBounds().intersects(other.getGlobalBounds());
 }
 
-int main() {
+ScreenLocation getMiddleOfScreen(float screenXDim, float screenYDim) {
+    float middleX = static_cast<float>(screenXDim) / 2.0f;
+    float middleY = static_cast<float>(screenYDim) / 2.0f;
+
+    ScreenLocation middle = ScreenLocation(middleX, middleY);
+    return middle;
+}
+
+int main() { 
     // Create a window
     sf::RenderWindow window(sf::VideoMode(800, 600), "Moving Square");
 
@@ -40,9 +58,11 @@ int main() {
     square.setFillColor(sf::Color::Green);
 
     // Set the initial position of the square
-    float posX = 375.0f;
-    float posY = 275.0f;
-    square.setPosition(posX, posY);
+    ScreenLocation middle = getMiddleOfScreen(window.getSize().x, window.getSize().y);
+    square.setPosition(middle.posX, middle.posY);
+
+    float posX = middle.posX;
+    float posY = middle.posY;
 
     // Set the speed of the square movement
     float squareSpeed = 0.01f;
@@ -151,13 +171,10 @@ int main() {
             projectile.shape.move(projectile.velocity);
 
             if (checkCollision(square, projectile.shape)) {
-                sf::Vector2u windowSize = window.getSize();
+                ScreenLocation middle = getMiddleOfScreen(window.getSize().x, window.getSize().y);
 
-                float middleX = static_cast<float>(windowSize.x) / 2.0f;
-                float middleY = static_cast<float>(windowSize.y) / 2.0f;
-
-                posX = middleX;
-                posY = middleY;
+                posX = middle.posX;
+                posY = middle.posY;
             }
         }
 
